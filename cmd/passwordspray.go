@@ -7,13 +7,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ropnop/kerbrute/util"
+	"github.com/chin-tech/kerbrute/util"
 
 	"github.com/spf13/cobra"
 )
 
 var usernameList string
-var password string
+var passOrHash string
 
 // var userAsPass bool
 
@@ -32,6 +32,8 @@ WARNING: use with caution - failed Kerberos pre-auth can cause account lockouts`
 
 func init() {
 	passwordSprayCmd.Flags().BoolVar(&userAsPass, "user-as-pass", false, "Spray every account with the username as the password")
+	passwordSprayCmd.Flags().BoolVar(&nthash, "nthash", false, "Supplied is NT-Hash not a password")
+	passwordSprayCmd.Flags().BoolVar(&aeshash, "aeshash", false, "Supplied is AES-key not a password")
 	rootCmd.AddCommand(passwordSprayCmd)
 
 }
@@ -43,12 +45,16 @@ func passwordSpray(cmd *cobra.Command, args []string) {
 			logger.Log.Error("You must specify a password to spray with, or --user-as-pass")
 			os.Exit(1)
 		} else {
-			password = args[1]
+			passOrHash = args[1]
 		}
 	} else {
-		password = "foobar" //it doesn't matter, won't use it
+		passOrHash = "foobar" //it doesn't matter, won't use it
 	}
 	stopOnSuccess = false
+	// cred := util.SecureCredential{
+	// 	password: passOrHash,
+	// 	hash: passOrHash,
+	// }
 
 	usersChan := make(chan string, threads)
 	defer cancel()
@@ -68,10 +74,10 @@ func passwordSpray(cmd *cobra.Command, args []string) {
 	} else {
 		scanner = bufio.NewScanner(os.Stdin)
 	}
-	
 
 	for i := 0; i < threads; i++ {
-		go makeSprayWorker(ctx, usersChan, &wg, password, userAsPass)
+		// go makeWorker(ctx, usersChan, &wg, execFunc, passOrHash)
+		go makeSprayWorker(ctx, usersChan, &wg, passOrHash, userAsPass)
 	}
 
 	start := time.Now()

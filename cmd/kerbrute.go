@@ -15,6 +15,14 @@ It is designed to be used on an internal Windows domain with access to one of th
 Warning: failed Kerberos Pre-Auth counts as a failed login and WILL lock out accounts`,
 }
 
+var completionCmd = &cobra.Command{
+	Use:   "completion",
+	Short: "Generation completion script",
+	Run: func(cmd *cobra.Command, args []string) {
+		rootCmd.GenBashCompletion(os.Stdout)
+	},
+}
+
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -32,6 +40,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&delay, "delay", "", 0, "Delay in millisecond between each attempt. Will always use single thread if set")
 	rootCmd.PersistentFlags().BoolVar(&downgrade, "downgrade", false, "Force downgraded encryption type (arcfour-hmac-md5)")
 	rootCmd.PersistentFlags().StringVar(&hashFileName, "hash-file", "", "File to save AS-REP hashes to (if any captured), otherwise just logged")
+	rootCmd.AddCommand(completionCmd)
 	if delay != 0 {
 		threads = 1
 	}

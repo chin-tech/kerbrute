@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/ropnop/kerbrute/session"
-	"github.com/ropnop/kerbrute/util"
+	"github.com/chin-tech/kerbrute/session"
+	"github.com/chin-tech/kerbrute/util"
 	"github.com/spf13/cobra"
 )
 
@@ -19,12 +19,14 @@ var (
 	threads          int
 	stopOnSuccess    bool
 	userAsPass       = false
+	nthash           = false
+	aeshash          = false
 
-	downgrade bool
+	downgrade    bool
 	hashFileName string
 
-	logger           util.Logger
-	kSession         session.KerbruteSession
+	logger   util.Logger
+	kSession session.KerbruteSession
 
 	// Used for multithreading
 	ctx, cancel = context.WithCancel(context.Background())
@@ -40,7 +42,7 @@ func setupSession(cmd *cobra.Command, args []string) {
 		Verbose:          verbose,
 		SafeMode:         safe,
 		HashFilename:     hashFileName,
-		Downgrade: downgrade,
+		Downgrade:        downgrade,
 	}
 	k, err := session.NewKerbruteSession(kOptions)
 	if err != nil {

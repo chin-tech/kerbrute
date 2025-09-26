@@ -1,7 +1,7 @@
 TARGET=./dist
 ARCHS=amd64 386 
 GOOS=windows linux darwin
-PACKAGENAME="github.com/ropnop/kerbrute"
+PACKAGENAME="github.com/chin-tech/kerbrute"
 
 COMMIT=`git rev-parse --short HEAD`
 DATE=`date +%m/%d/%y`
@@ -47,7 +47,7 @@ mac: ## Make Darwin (Mac) x86 and x64 Binaries
 
 clean: ## Delete any binaries
 	@rm -f ${TARGET}/* ; \
-	go clean -i -n github.com/ropnop/kerbrute ; \
+	go clean -i -n github.com/chin-tech/kerbrute ; \
 	echo "Done."
 
 all: ## Make Windows, Linux and Mac x86/x64 Binaries

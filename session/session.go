@@ -2,16 +2,16 @@ package session
 
 import (
 	"fmt"
-	"github.com/ropnop/kerbrute/util"
+	"github.com/chin-tech/kerbrute/util"
 	"html/template"
 	"os"
 	"strings"
 
-	"github.com/ropnop/gokrb5/v8/iana/errorcode"
+	"github.com/chin-tech/gokrb5/v8/iana/errorcode"
 
-	kclient "github.com/ropnop/gokrb5/v8/client"
-	kconfig "github.com/ropnop/gokrb5/v8/config"
-	"github.com/ropnop/gokrb5/v8/messages"
+	kclient "github.com/chin-tech/gokrb5/v8/client"
+	kconfig "github.com/chin-tech/gokrb5/v8/config"
+	"github.com/chin-tech/gokrb5/v8/messages"
 )
 
 const krb5ConfigTemplateDNS = `[libdefaults]
@@ -36,18 +36,18 @@ type KerbruteSession struct {
 	Config       *kconfig.Config
 	Verbose      bool
 	SafeMode     bool
-	HashFile *os.File
-	Logger *util.Logger
+	HashFile     *os.File
+	Logger       *util.Logger
 }
 
 type KerbruteSessionOptions struct {
-	Domain string
+	Domain           string
 	DomainController string
-	Verbose bool
-	SafeMode bool
-	Downgrade bool
-	HashFilename string
-	logger *util.Logger
+	Verbose          bool
+	SafeMode         bool
+	Downgrade        bool
+	HashFilename     string
+	logger           *util.Logger
 }
 
 func NewKerbruteSession(options KerbruteSessionOptions) (k KerbruteSession, err error) {
@@ -92,11 +92,16 @@ func NewKerbruteSession(options KerbruteSessionOptions) (k KerbruteSession, err 
 		Config:       Config,
 		Verbose:      options.Verbose,
 		SafeMode:     options.SafeMode,
-		HashFile: hashFile,
+		HashFile:     hashFile,
 		Logger:       options.logger,
 	}
 	return k, err
 
+}
+
+type SecureCredential struct {
+	password string
+	hash     []byte
 }
 
 func buildKrb5Template(realm, domainController string) string {
@@ -119,6 +124,7 @@ func buildKrb5Template(realm, domainController string) string {
 }
 
 func (k KerbruteSession) TestLogin(username, password string) (bool, error) {
+
 	Client := kclient.NewWithPassword(username, k.Realm, password, k.Config, kclient.DisablePAFXFAST(true), kclient.AssumePreAuthentication(true))
 	defer Client.Destroy()
 	if ok, err := Client.IsConfigured(); !ok {
@@ -130,6 +136,37 @@ func (k KerbruteSession) TestLogin(username, password string) (bool, error) {
 	}
 	success, err := k.TestLoginError(err)
 	return success, err
+}
+
+func (k KerbruteSession) TestCredential(username string, securecreds SecureCredential) (bool, error) {
+	if securecreds.password != "" {
+		c := kclient.NewWithPassword(username, k.Realm, securecreds.password, k.Config, kclient.DisablePAFXFAST(true), kclient.AssumePreAuthentication(true))
+		defer c.Destroy()
+		if ok, err := c.IsConfigured(); !ok {
+			return false, err
+		}
+		err := c.Login()
+		if err == nil {
+			return true, err
+		}
+		success, err := k.TestLoginError(err)
+		return success, err
+
+	}
+	if securecreds.hash != nil {
+		c := kclient.NewWithHash(username, k.Realm, securecreds.hash, k.Config, kclient.DisablePAFXFAST(true), kclient.AssumePreAuthentication(true))
+		defer c.Destroy()
+		if ok, err := c.IsConfigured(); !ok {
+			return false, err
+		}
+		err := c.Login()
+		if err == nil {
+			return true, err
+		}
+		success, err := k.TestLoginError(err)
+		return success, err
+	}
+	return false, nil
 }
 
 func (k KerbruteSession) TestUsername(username string) (bool, error) {

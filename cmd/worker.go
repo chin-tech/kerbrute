@@ -7,6 +7,26 @@ import (
 	"sync/atomic"
 )
 
+// func makeWorker(ctx context.Context, inChan interface{}, wg *sync.WaitGroup, execFunc func(context.Context, ...interface{}), args ...interface{}) {
+//
+// 	for {
+// 		select {
+// 		case <-ctx.Done():
+// 			break
+// 		case data, ok := <-inChan.(chan interface{}):
+// 			if !ok {
+// 				return
+// 			}
+// 			switch v := data.(type) {
+// 			case string:
+// 				execFunc(ctx, v, args[0])
+// 			case [2]string:
+// 				execFunc(ctx, v[0], v[1])
+// 			}
+// 		}
+// 	}
+// }
+
 func makeSprayWorker(ctx context.Context, usernames <-chan string, wg *sync.WaitGroup, password string, userAsPass bool) {
 	defer wg.Done()
 	for {
@@ -18,9 +38,9 @@ func makeSprayWorker(ctx context.Context, usernames <-chan string, wg *sync.Wait
 				return
 			}
 			if userAsPass {
-				testLogin(ctx, username, username)
+				TestLogin(ctx, username, username)
 			} else {
-				testLogin(ctx, username, password)
+				TestLogin(ctx, username, password)
 			}
 		}
 	}
@@ -36,7 +56,7 @@ func makeBruteWorker(ctx context.Context, passwords <-chan string, wg *sync.Wait
 			if !ok {
 				return
 			}
-			testLogin(ctx, username, password)
+			TestLogin(ctx, username, password)
 		}
 	}
 }
@@ -51,7 +71,7 @@ func makeEnumWorker(ctx context.Context, usernames <-chan string, wg *sync.WaitG
 			if !ok {
 				return
 			}
-			testUsername(ctx, username)
+			TestUsername(ctx, username)
 		}
 	}
 }
@@ -66,12 +86,12 @@ func makeBruteComboWorker(ctx context.Context, combos <-chan [2]string, wg *sync
 			if !ok {
 				return
 			}
-			testLogin(ctx, combo[0], combo[1])
+			TestLogin(ctx, combo[0], combo[1])
 		}
 	}
 }
 
-func testLogin(ctx context.Context, username string, password string) {
+func TestLogin(ctx context.Context, username string, password string) {
 	atomic.AddInt32(&counter, 1)
 	login := fmt.Sprintf("%v@%v:%v", username, domain, password)
 	if ok, err := kSession.TestLogin(username, password); ok {
@@ -96,7 +116,7 @@ func testLogin(ctx context.Context, username string, password string) {
 	}
 }
 
-func testUsername(ctx context.Context, username string) {
+func TestUsername(ctx context.Context, username string) {
 	atomic.AddInt32(&counter, 1)
 	usernamefull := fmt.Sprintf("%v@%v", username, domain)
 	valid, err := kSession.TestUsername(username)
