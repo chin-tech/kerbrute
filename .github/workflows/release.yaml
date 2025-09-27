@@ -49,16 +49,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Gather artifacts
-        id: artifacts
-        run: |
-          echo "files<<EOF" >> $GITHUB_OUTPUT
-          find dist -type f >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Release
+      - name: Upload release assets
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          files: ${{ steps.artifacts.outputs.files }}
-
+          files: dist/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
