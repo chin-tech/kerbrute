@@ -1,6 +1,6 @@
 module github.com/chin-tech/kerbrute
 
-go 1.24.0
+go 1.18.0
 
 require (
 	github.com/chin-tech/gokrb5/v8 v8.0.0-20250926202251-f67e32263a91
