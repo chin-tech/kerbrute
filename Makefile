@@ -1,5 +1,6 @@
 TARGET=./dist
 ARCHS=amd64 386 
+DARWIN_ARCHS=amd64 arm64 
 GOOS=windows linux darwin
 PACKAGENAME="github.com/chin-tech/kerbrute"
 
@@ -41,7 +42,7 @@ linux: ## Make Linux x86 and x64 Binaries
 	echo "Done."
 
 mac: ## Make Darwin (Mac) x86 and x64 Binaries
-	@for ARCH in ${ARCHS}; do \
+	@for ARCH in ${DARWIN_ARCHS}; do \
 		echo "Building for mac $${ARCH}..." ; \
 		GOOS=darwin GOARCH=$${ARCH} go build -a -ldflags ${LDFLAGS} -o ${TARGET}/kerbrute_darwin_$${ARCH} || exit 1 ;\
 		sha256sum ${TARGET}/kerbrute_darwin_$${ARCH} >> ${TARGET}/sha256.sum; \
