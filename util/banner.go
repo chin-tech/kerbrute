@@ -2,7 +2,7 @@ package util
 
 import "fmt"
 
-func PrintBanner() {
+func PrintBanner(text string) string {
 	banner := `
     __             __               __     
    / /_____  _____/ /_  _______  __/ /____ 
@@ -10,5 +10,5 @@ func PrintBanner() {
  / ,< /  __/ /  / /_/ / /  / /_/ / /_/  __/
 /_/|_|\___/_/  /_.___/_/   \__,_/\__/\___/                                        
 `
-	fmt.Printf("%v\nVersion: %v (%v) - %v - %v\n\n", banner, Version, GitCommit, BuildDate, Author)
+	return fmt.Sprintf("%v\nVersion: %v (%v) - %v - %v\n\n%s", banner, Version, GitCommit, BuildDate, Author, text)
 }

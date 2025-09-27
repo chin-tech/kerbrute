@@ -1,16 +1,35 @@
-# Kerbrute
-[![CircleCI](https://circleci.com/gh/ropnop/kerbrute.svg?style=svg)](https://circleci.com/gh/ropnop/kerbrute)
+# Kerbrute - With PTH
+
+This is a fork from ropnop's [kerbrute](https://github.com/ropnop/kerbrute) so credit to him for the main program.
+He hasn't updated anything in a while and I wanted this program to have:
+
+-  PassTheHash support
+-  Command-Line completion
+-  To respect the KRB5_CONFIG like, everything else
+
+It now has those things.
+
+
+Notes: 
+- Only NThashes have been tested, AES hashes should work, but it was low on the totem pool.
+- Only bash completion has been tested you need the `bash-completion` package installed and then source the completion script installed or `mv kerbrute_completion.sh /etc/bash_completion.d/`
+
+```bash
+# KRB5_CONFIG is set, so I don't have to set -d or --dc
+kerbrute passwordspray users.txt 5d8c3[redacted]60f469f6763ca0d50 --nthash -t1
+2025/09/26 14:04:49 >  Using KDC(s):
+2025/09/26 14:04:49 >   AWSJPDC0522.shibuya.vl:88
+
+2025/09/26 14:04:51 >  [+] VALID LOGIN:  simon.watson@shibuya.vl:5d8c3[redacted]60f469f6763ca0d50
+```
 
 A tool to quickly bruteforce and enumerate valid Active Directory accounts through Kerberos Pre-Authentication
 
-Grab the latest binaries from the [releases page](https://github.com/ropnop/kerbrute/releases/latest) to get started.
+Grab the latest binaries from the [releases page](https://github.com/chin-tech/kerbrute/releases/latest) to get started.
 
-## Background
-This tool grew out of some [bash scripts](https://github.com/ropnop/kerberos_windows_scripts) I wrote a few years ago to perform bruteforcing using the Heimdal Kerberos client from Linux. I wanted something that didn't require privileges to install a Kerberos client, and when I found the amazing pure Go implementation of Kerberos [gokrb5](https://github.com/jcmturner/gokrb5), I decided to finally learn Go and write this. 
+## Benefits
 
-Bruteforcing Windows passwords with Kerberos is much faster than any other approach I know of, and potentially stealthier since pre-authentication failures do not trigger that "traditional" `An account failed to log on` event 4625. With Kerberos, you can validate a username or test a login by only sending one UDP frame to the KDC (Domain Controller)
-
-For more background and information, check out my Troopers 2019 talk, Fun with LDAP and Kerberos (link TBD)
+Bruteforcing via kerberos is faster and stealthier. Pre-auth failures don't trigger `An account failed to logon` event 4625
 
 ## Usage
 Kerbrute has three main commands:
@@ -158,7 +177,7 @@ Version: dev (n/a) - 05/11/19 - Ronnie Flathers @ropnop
 ```
 
 ## Installing
-You can download pre-compiled binaries for Linux, Windows and Mac from the [releases page](https://github.com/ropnop/kerbrute/releases/tag/latest). If you want to live on the edge, you can also install with Go:
+You can download pre-compiled binaries for Linux, Windows and Mac from the [releases page](https://github.com/chin-tech/kerbrute/releases/tag/latest). If you want to live on the edge, you can also install with Go:
 
 ```
 $ go get github.com/ropnop/kerbrute
@@ -193,6 +212,6 @@ kerbrute_darwin_amd64      kerbrute_linux_amd64       kerbrute_windows_amd64.exe
 ```
 
 ## Credits
-Huge shoutout to jcmturner for his pure Go implementation of KRB5: https://github.com/jcmturner/gokrb5 . An amazing project and very well documented. Couldn't have done any of this without that project. 
+[jcmturner's gokrb5](https://github.com/jcmturner/gokrb5) - I also forked and edited to add hash support
+[Ronnie Flathers](https://github.com/ropnop)  - Kerbrute creator
 
-Shoutout to [audibleblink](https://github.com/audibleblink) for the suggestion and implementation of the `delay` option!

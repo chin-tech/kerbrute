@@ -3,7 +3,7 @@ module github.com/chin-tech/kerbrute
 go 1.24.0
 
 require (
-	github.com/chin-tech/gokrb5/v8 v8.0.0-20250926011007-f42234b8371f
+	github.com/chin-tech/gokrb5/v8 v8.0.0-20250926202251-f67e32263a91
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/spf13/cobra v1.10.1
 )

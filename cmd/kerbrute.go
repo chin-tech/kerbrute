@@ -4,22 +4,31 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/chin-tech/kerbrute/util"
 	"github.com/spf13/cobra"
 )
+
+var WarningString = "\n[WARNING] - Failed Kerberos Pre-Auth attempts count toward failed logins and WILL lock out accounts!\n"
 
 var rootCmd = &cobra.Command{
 	Use:   "kerbrute",
 	Short: "A tool to perform various bruteforce attacks against Windows Kerberos",
-	Long: `This tool is designed to assist in quickly bruteforcing valid Active Directory accounts through Kerberos Pre-Authentication.
-It is designed to be used on an internal Windows domain with access to one of the Domain Controllers.
-Warning: failed Kerberos Pre-Auth counts as a failed login and WILL lock out accounts`,
+	Long: util.PrintBanner(`
+This tool is designed to assist in quickly bruteforcing valid Active Directory accounts through Kerberos Pre-Authentication.
+It is designed to be used on an internal Windows domain with access to one of the Domain Controllers.` + WarningString),
 }
 
 var completionCmd = &cobra.Command{
 	Use:   "completion",
-	Short: "Generation completion script",
+	Short: "Generates command-line completion scripts inside the CWD",
+	Long: `Generates command-line completion scripts inside the CWD: BASH, ZSH, FISH, POWERSHELL.
+	Bash: Needs the bash-completion package and to be sourced in your shell`,
 	Run: func(cmd *cobra.Command, args []string) {
-		rootCmd.GenBashCompletion(os.Stdout)
+
+		rootCmd.GenBashCompletionFile("kerbrute_completion.sh")
+		rootCmd.GenZshCompletionFile("kerbrute_completion.zsh")
+		rootCmd.GenFishCompletionFile("kerbrute_completion.fish", false)
+		rootCmd.GenPowerShellCompletionFile("kerbrute_completion.ps1")
 	},
 }
 

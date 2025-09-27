@@ -15,17 +15,42 @@ func ASRepToHashcat(asrep messages.ASRep) (string, error) {
 		hex.EncodeToString(asrep.EncPart.Cipher[16:])), nil
 }
 
+type CredType int
+
+const (
+	CredUnknown CredType = iota
+	CredPassword
+	CredHash
+)
+
 type SecureCredential struct {
-	password string
-	hash     string
+	Type CredType
+	Cred string
 }
 
-func (s *SecureCredential) GetHash() ([]byte, error) {
-	hash, err := hex.DecodeString(s.hash)
-	if err != nil {
-		fmt.Printf("Bad hash format!: %v\n", err)
-		return nil, err
-	}
-	return hash, err
+func NewPassword(pw string) SecureCredential {
+	return SecureCredential{CredPassword, pw}
+}
 
+func NewHash(hash string) SecureCredential {
+	return SecureCredential{CredHash, hash}
+}
+
+func (s SecureCredential) isPassword() bool { return s.Type == CredPassword }
+func (s SecureCredential) isHash() bool     { return s.Type == CredHash }
+
+func (s SecureCredential) HashBytes() ([]byte, error) {
+	if s.isHash() {
+		hashBytes, err := hex.DecodeString(s.Cred)
+		if err != nil {
+			return nil, err
+		}
+		return hashBytes, err
+	}
+	return nil, nil
+}
+
+type Combo struct {
+	Username string
+	Cred     SecureCredential
 }

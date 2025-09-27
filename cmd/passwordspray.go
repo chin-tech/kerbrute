@@ -20,11 +20,10 @@ var passOrHash string
 var passwordSprayCmd = &cobra.Command{
 	Use:   "passwordspray [flags] <username_wordlist> <password>",
 	Short: "Test a single password against a list of users",
-	Long: `Will perform a password spray attack against a list of users using Kerberos Pre-Authentication by requesting a TGT from the KDC.
+	Long: util.PrintBanner(`Will perform a password spray attack against a list of users using Kerberos Pre-Authentication by requesting a TGT from the KDC.
 If no domain controller is specified, the tool will attempt to look one up via DNS SRV records.
 A full domain is required. This domain will be capitalized and used as the Kerberos realm when attempting the bruteforce.
-Succesful logins will be displayed on stdout.
-WARNING: use with caution - failed Kerberos pre-auth can cause account lockouts`,
+Succesful logins will be displayed on stdout.` + WarningString),
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: setupSession,
 	Run:    passwordSpray,
@@ -51,11 +50,6 @@ func passwordSpray(cmd *cobra.Command, args []string) {
 		passOrHash = "foobar" //it doesn't matter, won't use it
 	}
 	stopOnSuccess = false
-	// cred := util.SecureCredential{
-	// 	password: passOrHash,
-	// 	hash: passOrHash,
-	// }
-
 	usersChan := make(chan string, threads)
 	defer cancel()
 
@@ -75,9 +69,16 @@ func passwordSpray(cmd *cobra.Command, args []string) {
 		scanner = bufio.NewScanner(os.Stdin)
 	}
 
+	var cred util.SecureCredential
+	if nthash || aeshash {
+		cred = util.NewHash(passOrHash)
+	} else {
+		cred = util.NewPassword(passOrHash)
+	}
+
 	for i := 0; i < threads; i++ {
 		// go makeWorker(ctx, usersChan, &wg, execFunc, passOrHash)
-		go makeSprayWorker(ctx, usersChan, &wg, passOrHash, userAsPass)
+		go makeSprayWorker(ctx, usersChan, &wg, cred, userAsPass)
 	}
 
 	start := time.Now()

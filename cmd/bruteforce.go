@@ -15,10 +15,10 @@ import (
 var bruteForceCmd = &cobra.Command{
 	Use:   "bruteforce [flags] <user_pw_file>",
 	Short: "Bruteforce username:password combos, from a file or stdin",
-	Long: `Will read username and password combos from a file or stdin (format username:password) and perform a bruteforce attack using Kerberos Pre-Authentication by requesting at TGT from the KDC. Any succesful combinations will be displayed.
+	Long: util.PrintBanner(`
+ Reads username and password combos from a file or stdin (format username:password) and performs a bruteforce attack using Kerberos Pre-Authentication by requesting a TGT from the KDC. Succesful combinations will be displayed.
 If no domain controller is specified, the tool will attempt to look one up via DNS SRV records.
-A full domain is required. This domain will be capitalized and used as the Kerberos realm when attempting the bruteforce.
-WARNING: failed guesses will count against the lockout threshold`,
+A full domain is required. This domain will be capitalized and used as the Kerberos realm when attempting the bruteforce.` + WarningString),
 	Args:   cobra.ExactArgs(1),
 	PreRun: setupSession,
 	Run:    bruteForceCombos,
@@ -26,13 +26,15 @@ WARNING: failed guesses will count against the lockout threshold`,
 
 func init() {
 	rootCmd.AddCommand(bruteForceCmd)
+	bruteForceCmd.Flags().BoolVar(&nthash, "nthash", false, "Supplied is NT-Hash not a password")
+	bruteForceCmd.Flags().BoolVar(&aeshash, "aeshash", false, "Supplied is AES-key not a password")
 }
 
 func bruteForceCombos(cmd *cobra.Command, args []string) {
 	combolist := args[0]
 	stopOnSuccess = false
 
-	combosChan := make(chan [2]string, threads)
+	combosChan := make(chan util.Combo, threads)
 	defer cancel()
 
 	var wg sync.WaitGroup
@@ -67,13 +69,13 @@ Scan:
 			if comboline == "" {
 				continue
 			}
-			username, password, err := util.FormatComboLine(comboline)
+			combo, err := util.FormatComboLine(comboline, (nthash || aeshash))
 			if err != nil {
 				logger.Log.Debug("[!] Skipping: %q - %v", comboline, err.Error())
 				continue
 			}
 			time.Sleep(time.Duration(delay) * time.Millisecond)
-			combosChan <- [2]string{username, password}
+			combosChan <- combo
 		}
 	}
 	close(combosChan)

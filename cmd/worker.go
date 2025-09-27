@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/chin-tech/kerbrute/util"
 	"sync"
 	"sync/atomic"
 )
@@ -27,7 +28,7 @@ import (
 // 	}
 // }
 
-func makeSprayWorker(ctx context.Context, usernames <-chan string, wg *sync.WaitGroup, password string, userAsPass bool) {
+func makeSprayWorker(ctx context.Context, usernames <-chan string, wg *sync.WaitGroup, cred util.SecureCredential, userAsPass bool) {
 	defer wg.Done()
 	for {
 		select {
@@ -38,15 +39,17 @@ func makeSprayWorker(ctx context.Context, usernames <-chan string, wg *sync.Wait
 				return
 			}
 			if userAsPass {
-				TestLogin(ctx, username, username)
+				cred.Type = util.CredPassword
+				cred.Cred = username
+				testCred(ctx, username, cred)
 			} else {
-				TestLogin(ctx, username, password)
+				testCred(ctx, username, cred)
 			}
 		}
 	}
 }
 
-func makeBruteWorker(ctx context.Context, passwords <-chan string, wg *sync.WaitGroup, username string) {
+func makeBruteWorker(ctx context.Context, passwords <-chan util.SecureCredential, wg *sync.WaitGroup, username string) {
 	defer wg.Done()
 	for {
 		select {
@@ -56,7 +59,7 @@ func makeBruteWorker(ctx context.Context, passwords <-chan string, wg *sync.Wait
 			if !ok {
 				return
 			}
-			TestLogin(ctx, username, password)
+			testCred(ctx, username, password)
 		}
 	}
 }
@@ -76,7 +79,7 @@ func makeEnumWorker(ctx context.Context, usernames <-chan string, wg *sync.WaitG
 	}
 }
 
-func makeBruteComboWorker(ctx context.Context, combos <-chan [2]string, wg *sync.WaitGroup) {
+func makeBruteComboWorker(ctx context.Context, combos <-chan util.Combo, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 		select {
@@ -86,7 +89,32 @@ func makeBruteComboWorker(ctx context.Context, combos <-chan [2]string, wg *sync
 			if !ok {
 				return
 			}
-			TestLogin(ctx, combo[0], combo[1])
+			testCred(ctx, combo.Username, combo.Cred)
+		}
+	}
+}
+
+func testCred(ctx context.Context, username string, cred util.SecureCredential) {
+	atomic.AddInt32(&counter, 1)
+	login := fmt.Sprintf("%v@%v:%v", username, domain, cred.Cred)
+	if ok, err := kSession.TestCredential(username, cred); ok {
+		atomic.AddInt32(&successes, 1)
+		if err != nil { // it's a valid login, but there's an error we should display
+			logger.Log.Noticef("[+] VALID LOGIN WITH ERROR:\t %s\t (%s)", login, err)
+		} else {
+			logger.Log.Noticef("[+] VALID LOGIN:\t %s", login)
+		}
+		if stopOnSuccess {
+			cancel()
+		}
+	} else {
+		// This is to determine if the error is "okay" or if we should abort everything
+		ok, errorString := kSession.HandleKerbError(err)
+		if !ok {
+			logger.Log.Errorf("[!] %v - %v", login, errorString)
+			cancel()
+		} else {
+			logger.Log.Debugf("[!] %v - %v", login, errorString)
 		}
 	}
 }

@@ -2,10 +2,12 @@ package session
 
 import (
 	"fmt"
-	"github.com/chin-tech/kerbrute/util"
 	"html/template"
+	"log"
 	"os"
 	"strings"
+
+	"github.com/chin-tech/kerbrute/util"
 
 	"github.com/chin-tech/gokrb5/v8/iana/errorcode"
 
@@ -29,15 +31,15 @@ default_realm = {{.Realm}}
 `
 
 type KerbruteSession struct {
-	Domain       string
-	Realm        string
-	Kdcs         map[int]string
-	ConfigString string
-	Config       *kconfig.Config
-	Verbose      bool
-	SafeMode     bool
-	HashFile     *os.File
-	Logger       *util.Logger
+	Domain string
+	Realm  string
+	Kdcs   map[int]string
+	// ConfigString string
+	Config   *kconfig.Config
+	Verbose  bool
+	SafeMode bool
+	HashFile *os.File
+	Logger   *util.Logger
 }
 
 type KerbruteSessionOptions struct {
@@ -50,10 +52,35 @@ type KerbruteSessionOptions struct {
 	logger           *util.Logger
 }
 
-func NewKerbruteSession(options KerbruteSessionOptions) (k KerbruteSession, err error) {
-	if options.Domain == "" {
-		return k, fmt.Errorf("domain must not be empty")
+func LoadKrbConfig(kopts KerbruteSessionOptions) *kconfig.Config {
+	path := os.Getenv("KRB5_CONFIG")
+	if path == "" && kopts.Domain == "" {
+		path = "/etc/krb5.conf"
 	}
+	cfg, err := kconfig.Load(path)
+	if err != nil || kopts.Domain != "" {
+		if kopts.Domain == "" {
+			log.Fatalf("[!] Empty KRB5_CONFIG and No [-d] domain specified")
+		}
+		if kopts.DomainController == "" {
+			log.Fatalf("[!] Empty KRB5_CONFIG and No [--dc] Domain Controller found")
+		}
+		realm := strings.ToUpper(kopts.Domain)
+		cfgString := buildKrb5Template(realm, kopts.DomainController)
+		cfg, err := kconfig.NewFromString(cfgString)
+		if err != nil {
+			log.Fatalf("[!] Failed creating krb5 templ")
+		}
+		return cfg
+
+	}
+	return cfg
+}
+
+func NewKerbruteSession(options KerbruteSessionOptions) (k KerbruteSession, err error) {
+	// if options.Domain == "" {
+	// 	return k, fmt.Errorf("domain must not be empty")
+	// }
 	if options.logger == nil {
 		logger := util.NewLogger(options.Verbose, "")
 		options.logger = &logger
@@ -70,38 +97,41 @@ func NewKerbruteSession(options KerbruteSessionOptions) (k KerbruteSession, err 
 		}
 	}
 
-	realm := strings.ToUpper(options.Domain)
-	configstring := buildKrb5Template(realm, options.DomainController)
-	Config, err := kconfig.NewFromString(configstring)
+	cfg := LoadKrbConfig(options)
+	realm := cfg.LibDefaults.DefaultRealm
+	var domain string
+	if options.Domain != "" {
+		domain = strings.ToLower(cfg.LibDefaults.DefaultRealm)
+	} else {
+		domain = options.Domain
+	}
+	// realm := strings.ToUpper(options.Domain)
+	// configstring := buildKrb5Template(realm, options.DomainController)
+	// cfg, err := kconfig.NewFromString(configstring)
 	if options.Downgrade {
-		Config.LibDefaults.DefaultTktEnctypeIDs = []int32{23} // downgrade to arcfour-hmac-md5 for crackable AS-REPs
+		cfg.LibDefaults.DefaultTktEnctypeIDs = []int32{23} // downgrade to arcfour-hmac-md5 for crackable AS-REPs
 		options.logger.Log.Info("Using downgraded encryption: arcfour-hmac-md5")
 	}
 	if err != nil {
 		panic(err)
 	}
-	_, kdcs, err := Config.GetKDCs(realm, false)
+	_, kdcs, err := cfg.GetKDCs(realm, false)
 	if err != nil {
 		err = fmt.Errorf("Couldn't find any KDCs for realm %s. Please specify a Domain Controller", realm)
 	}
 	k = KerbruteSession{
-		Domain:       options.Domain,
-		Realm:        realm,
-		Kdcs:         kdcs,
-		ConfigString: configstring,
-		Config:       Config,
-		Verbose:      options.Verbose,
-		SafeMode:     options.SafeMode,
-		HashFile:     hashFile,
-		Logger:       options.logger,
+		Domain:   domain,
+		Realm:    realm,
+		Kdcs:     kdcs,
+		Config:   cfg,
+		Verbose:  options.Verbose,
+		SafeMode: options.SafeMode,
+		HashFile: hashFile,
+		Logger:   options.logger,
+		// ConfigString: configstring,
 	}
 	return k, err
 
-}
-
-type SecureCredential struct {
-	password string
-	hash     []byte
 }
 
 func buildKrb5Template(realm, domainController string) string {
@@ -134,39 +164,44 @@ func (k KerbruteSession) TestLogin(username, password string) (bool, error) {
 	if err == nil {
 		return true, err
 	}
-	success, err := k.TestLoginError(err)
-	return success, err
+	return k.TestLoginError(err)
 }
 
-func (k KerbruteSession) TestCredential(username string, securecreds SecureCredential) (bool, error) {
-	if securecreds.password != "" {
-		c := kclient.NewWithPassword(username, k.Realm, securecreds.password, k.Config, kclient.DisablePAFXFAST(true), kclient.AssumePreAuthentication(true))
-		defer c.Destroy()
-		if ok, err := c.IsConfigured(); !ok {
-			return false, err
-		}
-		err := c.Login()
-		if err == nil {
-			return true, err
-		}
-		success, err := k.TestLoginError(err)
-		return success, err
+func (k *KerbruteSession) checkLogin(client *kclient.Client) (bool, error) {
+	defer client.Destroy()
+
+	if ok, err := client.IsConfigured(); !ok {
+		return false, err
+	}
+
+	err := client.Login()
+	if err == nil {
+		return true, err
+	}
+	// s, err := k.TestLoginError(err)
+
+	return k.TestLoginError(err)
+
+}
+
+func (k KerbruteSession) TestCredential(username string, securecreds util.SecureCredential) (bool, error) {
+	hashBytes, err := securecreds.HashBytes()
+	// fmt.Printf("HashBytes Value: %v | Error: %v \n", hashBytes, err)
+	if err != nil {
+		return false, err
+	}
+	if hashBytes == nil { // Password is the actual option
+		// fmt.Printf("Testing: %q\n", securecreds.Cred)
+		c := kclient.NewWithPassword(username, k.Realm, securecreds.Cred, k.Config, kclient.DisablePAFXFAST(true), kclient.AssumePreAuthentication(false))
+		// fmt.Printf("%v\n", c)
+		return k.checkLogin(c)
+
+	} else {
+		c := kclient.NewWithHash(username, k.Realm, hashBytes, k.Config, kclient.DisablePAFXFAST(true), kclient.AssumePreAuthentication(false))
+		return k.checkLogin(c)
 
 	}
-	if securecreds.hash != nil {
-		c := kclient.NewWithHash(username, k.Realm, securecreds.hash, k.Config, kclient.DisablePAFXFAST(true), kclient.AssumePreAuthentication(true))
-		defer c.Destroy()
-		if ok, err := c.IsConfigured(); !ok {
-			return false, err
-		}
-		err := c.Login()
-		if err == nil {
-			return true, err
-		}
-		success, err := k.TestLoginError(err)
-		return success, err
-	}
-	return false, nil
+
 }
 
 func (k KerbruteSession) TestUsername(username string) (bool, error) {
