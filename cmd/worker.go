@@ -96,7 +96,7 @@ func makeBruteComboWorker(ctx context.Context, combos <-chan util.Combo, wg *syn
 
 func testCred(ctx context.Context, username string, cred util.SecureCredential) {
 	atomic.AddInt32(&counter, 1)
-	login := fmt.Sprintf("%v@%v:%v", username, domain, cred.Cred)
+	login := fmt.Sprintf("%v:%v", username, cred.Cred)
 	if ok, err := kSession.TestCredential(username, cred); ok {
 		atomic.AddInt32(&successes, 1)
 		if err != nil { // it's a valid login, but there's an error we should display
@@ -121,7 +121,7 @@ func testCred(ctx context.Context, username string, cred util.SecureCredential) 
 
 func TestLogin(ctx context.Context, username string, password string) {
 	atomic.AddInt32(&counter, 1)
-	login := fmt.Sprintf("%v@%v:%v", username, domain, password)
+	login := fmt.Sprintf("%v:%v", username, password)
 	if ok, err := kSession.TestLogin(username, password); ok {
 		atomic.AddInt32(&successes, 1)
 		if err != nil { // it's a valid login, but there's an error we should display
@@ -146,26 +146,25 @@ func TestLogin(ctx context.Context, username string, password string) {
 
 func TestUsername(ctx context.Context, username string) {
 	atomic.AddInt32(&counter, 1)
-	usernamefull := fmt.Sprintf("%v@%v", username, domain)
 	valid, err := kSession.TestUsername(username)
 	if valid {
 		atomic.AddInt32(&successes, 1)
 		if err != nil {
 			logger.Log.Noticef("[+] VALID USERNAME WITH ERROR:\t %s\t (%s)", username, err)
 		} else {
-			logger.Log.Noticef("[+] VALID USERNAME:\t %s", usernamefull)
+			logger.Log.Noticef("[+] VALID USERNAME:\t %s", username)
 		}
 
 	} else if err != nil {
 		// This is to determine if the error is "okay" or if we should abort everything
 		ok, errorString := kSession.HandleKerbError(err)
 		if !ok {
-			logger.Log.Errorf("[!] %v - %v", usernamefull, errorString)
+			logger.Log.Errorf("[!] %v - %v", username, errorString)
 			cancel()
 		} else {
-			logger.Log.Debugf("[!] %v - %v", usernamefull, errorString)
+			logger.Log.Debugf("[!] %v - %v", username, errorString)
 		}
 	} else {
-		logger.Log.Debug("[!] Unknown behavior - %v", usernamefull)
+		logger.Log.Debug("[!] Unknown behavior - %v", username)
 	}
 }
